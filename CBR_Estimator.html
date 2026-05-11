@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBR Estimator – Coarse & Fine-Grained Subgrade Soils</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:        #f0ede8;
+    --panel:     #ffffff;
+    --border:    #c8c2b8;
+    --accent:    #1a4f8a;
+    --accent2:   #c8411b;
+    --green:     #1e7a3e;
+    --text:      #1c1a17;
+    --muted:     #6b6560;
+    --input-bg:  #faf9f7;
+    --out-bg:    #edf7f1;
+    --out-border:#7cc49a;
+    --shadow:    0 1px 3px rgba(0,0,0,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 3px solid var(--accent2);
+  }
+  .app-header .icon {
+    font-size: 26px; line-height:1;
+  }
+  .app-header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+  }
+  .app-header p {
+    font-size: 11px;
+    opacity: 0.75;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── MAIN WRAP ── */
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 18px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── SECTION CARDS ── */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+  }
+  .card-header {
+    background: var(--accent);
+    color: #fff;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 3px 3px 0 0;
+  }
+  .card-body { padding: 14px 16px; }
+
+  /* ── INPUT GRID ── */
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0 20px;
+  }
+  .input-col { display: flex; flex-direction: column; gap: 6px; }
+
+  .field {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 8px;
+  }
+  .field label {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .field label.out-label { color: var(--green); font-weight: 600; }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    background: var(--input-bg);
+    color: var(--text);
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+    background: #fff;
+  }
+  input.out-field {
+    background: var(--out-bg);
+    border-color: var(--out-border);
+    color: var(--green);
+    font-weight: 600;
+    cursor: default;
+    pointer-events: none;
+  }
+  input.invalid { border-color: #d44; background: #fff5f5; }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  /* ── DATASET SECTIONS ── */
+  .ds-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px 12px;
+    align-items: center;
+  }
+  .ds-label { font-size: 12.5px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .file-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .stat-row {
+    display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap;
+  }
+  .stat-box {
+    display: flex; align-items: center; gap: 7px;
+    background: #f4f2ef; border: 1px solid var(--border);
+    border-radius: 3px; padding: 5px 10px;
+  }
+  .stat-box span { font-size: 11.5px; color: var(--muted); }
+  .stat-box input {
+    width: 80px; padding: 3px 6px;
+    border: 1px solid var(--out-border);
+    border-radius: 2px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--green); background: var(--out-bg);
+    pointer-events: none;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary   { background: var(--accent);  color: #fff; }
+  .btn-primary:hover  { background: #15407a; }
+  .btn-success   { background: var(--green);   color: #fff; }
+  .btn-success:hover  { background: #166034; }
+  .btn-danger    { background: var(--accent2); color: #fff; }
+  .btn-danger:hover   { background: #a83618; }
+  .btn-sm { padding: 4px 10px; font-size: 11.5px; }
+
+  /* ── NOTE ── */
+  .note {
+    background: #fffef5;
+    border: 1px solid #e0d88e;
+    border-left: 4px solid #c8b400;
+    border-radius: 3px;
+    padding: 10px 14px;
+  }
+  .note-title { font-size: 11px; font-weight: 700; color: #7a6e00; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+  .note ol { padding-left: 16px; font-size: 12px; color: #5a5300; line-height: 1.7; }
+
+  /* ── FOOTER BAR ── */
+  .footer-bar {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 14px;
+  }
+
+  /* ── STATUS ── */
+  .status-card { padding: 10px 14px; }
+  .status-msg {
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .status-msg.ok  { color: var(--green); }
+  .status-msg.err { color: var(--accent2); }
+  .status-dot {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; margin-right: 6px;
+    vertical-align: middle;
+  }
+  .dot-ok  { background: var(--green); }
+  .dot-err { background: var(--accent2); }
+
+  /* ── CITATION ── */
+  .cite-card { padding: 10px 14px; }
+  .cite-line { font-size: 11.5px; color: var(--accent); margin-bottom: 3px; }
+  .cite-line a { color: var(--accent); text-decoration: none; }
+  .cite-line a:hover { text-decoration: underline; }
+
+  /* ── RANGE TABLE ── */
+  .range-toggle {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .range-table {
+    display: none;
+    margin-top: 8px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .range-table th {
+    background: #e8e4de;
+    padding: 4px 8px;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .range-table td {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .range-table tr:nth-child(even) td { background: #f9f8f6; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="icon">⬡</div>
+  <div>
+    <h1>CBR Estimator — ANN-NMPA Model</h1>
+    <p>California Bearing Ratio · Coarse &amp; Fine-Grained Subgrade Soils</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ═══════════════════════════════════════════
+       SECTION 1 — SINGLE SET OF INPUT PARAMETERS
+  ════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-header">Single set of input parameters</div>
+    <div class="card-body">
+      <div class="input-grid">
+
+        <!-- LEFT -->
+        <div class="input-col">
+          <div class="field">
+            <label>Gravel (%)</label>
+            <input type="number" id="g"    placeholder="0–16"  step="any">
+          </div>
+          <div class="field">
+            <label>Sand (%)</label>
+            <input type="number" id="sand" placeholder="3–71"  step="any">
+          </div>
+          <div class="field">
+            <label>Silt &amp; Clay (%)</label>
+            <input type="number" id="mc"   placeholder="29–97" step="any">
+          </div>
+          <div class="field">
+            <label>Coarse sand (%)</label>
+            <input type="number" id="cs"   placeholder="0–12"  step="any">
+          </div>
+          <div class="field">
+            <label>Medium sand (%)</label>
+            <input type="number" id="ms"   placeholder="1–35"  step="any">
+          </div>
+        </div>
+
+        <!-- MIDDLE -->
+        <div class="input-col">
+          <div class="field">
+            <label>Fine sand (%)</label>
+            <input type="number" id="fs"   placeholder="1–63"  step="any">
+          </div>
+          <div class="field">
+            <label>Silt (%)</label>
+            <input type="number" id="m"    placeholder="5–31"  step="any">
+          </div>
+          <div class="field">
+            <label>Clay (%)</label>
+            <input type="number" id="c"    placeholder="20–77" step="any">
+          </div>
+          <div class="field">
+            <label>Liquid limit (%)</label>
+            <input type="number" id="ll"   placeholder="23–54" step="any">
+          </div>
+          <div class="field">
+            <label>Plastic limit (%)</label>
+            <input type="number" id="pl"   placeholder="12–25" step="any">
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="input-col">
+          <div class="field">
+            <label>Plasticity index (%)</label>
+            <input type="number" id="pi"  placeholder="5–33"   step="any">
+          </div>
+          <div class="field">
+            <label>Cohesion (kg/cm²)</label>
+            <input type="number" id="coh" placeholder="0–1.90" step="any">
+          </div>
+          <div class="field">
+            <label>Friction angle (°)</label>
+            <input type="number" id="phi" placeholder="1–33.5" step="any">
+          </div>
+          <div class="field">
+            <label class="out-label">CBR-Soaked (%)</label>
+            <input type="text" id="cbr_s" class="out-field" readonly placeholder="—">
+          </div>
+          <div class="field">
+            <label class="out-label">CBR-Unsoaked (%)</label>
+            <input type="text" id="cbr_us" class="out-field" readonly placeholder="—">
+          </div>
+        </div>
+
+      </div><!-- /input-grid -->
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════
+       SECTION 2 & 3 — DATASET PANELS
+  ════════════════════════════════ -->
+  <div class="bottom-row">
+
+    <!-- KNOWN DATASET -->
+    <div class="card">
+      <div class="card-header">Known dataset (with measured CBR)</div>
+      <div class="card-body">
+        <div class="ds-grid">
+          <span class="ds-label">Upload dataset</span>
+          <span class="file-name" id="kd-name">No file selected</span>
+          <button class="btn btn-primary btn-sm" onclick="browseKnown()">Browse…</button>
+
+          <span class="ds-label">Save results</span>
+          <span class="file-name" id="kd-status"></span>
+          <button class="btn btn-success btn-sm" onclick="runKnown()">Estimate &amp; Save</button>
+        </div>
+        <div class="stat-row">
+          <div class="stat-box">
+            <span>R (correlation)</span>
+            <input id="r_val" readonly placeholder="—">
+          </div>
+          <div class="stat-box">
+            <span>RMSE</span>
+            <input id="rmse_val" readonly placeholder="—">
+          </div>
+        </div>
+        <input type="file" id="kd-file" accept=".xlsx,.xls" style="display:none" onchange="loadKnown(this)">
+      </div>
+    </div>
+
+    <!-- MULTIPLE INPUT SETS -->
+    <div class="card">
+      <div class="card-header">Multiple sets of input parameters</div>
+      <div class="card-body">
+        <div class="ds-grid">
+          <span class="ds-label">Upload dataset</span>
+          <span class="file-name" id="md-name">No file selected</span>
+          <button class="btn btn-primary btn-sm" onclick="browseMulti()">Browse…</button>
+
+          <span class="ds-label">Save results</span>
+          <span class="file-name" id="md-status"></span>
+          <button class="btn btn-success btn-sm" onclick="runMulti()">Estimate &amp; Save</button>
+        </div>
+        <input type="file" id="md-file" accept=".xlsx,.xls" style="display:none" onchange="loadMulti(this)">
+      </div>
+    </div>
+
+  </div><!-- /bottom-row -->
+
+  <!-- ═════════
+       NOTE
+  ════════ -->
+  <div class="note">
+    <div class="note-title">Notes</div>
+    <ol>
+      <li>Effective ranges of input parameters are given below (click to expand).</li>
+      <li>For <strong>known dataset</strong>: upload an Excel file with input+output columns; measured CBR must be the <em>rightmost column (col 15)</em>. For <strong>multiple datasets</strong>: upload an Excel file with only the 14 input columns.</li>
+      <li>All predictions use the ANN-NMPA model trained on Indian subgrade soil data.</li>
+    </ol>
+    <div class="range-toggle" onclick="toggleRange()">▸ Show input parameter ranges</div>
+    <table class="range-table" id="rangeTable">
+      <tr><th>Parameter</th><th>Min</th><th>Max</th><th>Unit</th></tr>
+      <tr><td>Gravel</td><td>0</td><td>16</td><td>%</td></tr>
+      <tr><td>Sand</td><td>3</td><td>71</td><td>%</td></tr>
+      <tr><td>Silt &amp; Clay</td><td>29</td><td>97</td><td>%</td></tr>
+      <tr><td>Coarse sand</td><td>0</td><td>12</td><td>%</td></tr>
+      <tr><td>Medium sand</td><td>1</td><td>35</td><td>%</td></tr>
+      <tr><td>Fine sand</td><td>1</td><td>63</td><td>%</td></tr>
+      <tr><td>Silt</td><td>5</td><td>31</td><td>%</td></tr>
+      <tr><td>Clay</td><td>20</td><td>77</td><td>%</td></tr>
+      <tr><td>Liquid limit</td><td>23</td><td>54</td><td>%</td></tr>
+      <tr><td>Plastic limit</td><td>12</td><td>25</td><td>%</td></tr>
+      <tr><td>Plasticity index</td><td>5</td><td>33</td><td>%</td></tr>
+      <tr><td>Cohesion</td><td>0.00</td><td>1.90</td><td>kg/cm²</td></tr>
+      <tr><td>Friction angle</td><td>1.0</td><td>33.5</td><td>°</td></tr>
+      <tr><td>Soaked/Unsoaked</td><td>1</td><td>2</td><td>code</td></tr>
+      <tr><td>CBR (output)</td><td>2.59</td><td>19.39</td><td>%</td></tr>
+    </table>
+  </div>
+
+  <!-- ══════════════════
+       FOOTER: STATUS + CITATION
+  ═══════════════════ -->
+  <div class="footer-bar">
+    <div class="card status-card">
+      <div class="card-header">Messages</div>
+      <div style="padding:10px 14px">
+        <div class="status-msg ok" id="statusMsg">
+          <span class="status-dot dot-ok"></span>Ready for estimation. Enter valid values in all fields.
+        </div>
+      </div>
+    </div>
+    <div class="card cite-card">
+      <div class="card-header">Citation</div>
+      <div style="padding:10px 14px">
+        <div class="cite-line">DOI: —</div>
+        <div class="cite-line">Developed by Dr. Abidhan Bardhan
+          <a href="mailto:abidhan@nitp.ac.in">(abidhan@nitp.ac.in)</a>
+        </div>
+        <div class="cite-line" style="color:var(--muted); font-size:11px; margin-top:4px;">
+          HTML port — ANN-NMPA weights embedded from ann_nmpa.mat
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+/* ══════════════════════════════════════════
+   MODEL WEIGHTS  (extracted from ann_nmpa.mat)
+════════════════════════════════════════════ */
+const MODEL = {
+  IW: [[0.09415927229274626,-0.40442864682186375,0.8595817286789735,0.33195584614673684,0.20931461797189027,-0.6193411932518972,0.8831625885838443,0.6101353311027008,0.004440149769764864,-0.4041319257645765,-0.7206269650837934,0.49988860919451655,0.014044529873772561,0.7193238916731075],[0.4957323463032363,-0.4300907703799372,0.09897697301509939,0.6622773819376492,-0.0621989769191956,0.8195599651312833,0.3753141901852365,-0.16466592695061785,0.49161094470897515,-0.293657501273354,-0.19810111916146383,0.16796572689922706,0.23074375426845342,1.6689567596452652],[-0.8651201635705041,0.17849946457842467,0.6599620647529221,-0.5877533125934443,-0.05381865560241734,0.3017885240024091,-0.24831301065204056,0.603472763167513,0.35251333109624483,0.7055660026643114,-0.4406543966441288,-0.446944818981897,-1.1233000015064687,0.17476967188815762],[-2.964604187665615e-05,-0.07843262805998535,-0.10784312362582539,0.6270576624561508,-1.0190036075105395,-0.19418334431670373,1.0004492703915906,0.8574009165166092,0.5522274697864475,-0.40057677263019936,0.48697013311176934,0.00762401420858143,0.29969911857405795,-0.7610678625865271],[1.0592547588378307,0.0124016716081547,-0.8393661118918793,0.42551393737939563,0.6173007026204523,-0.02147809273210212,-0.8468099960624121,-0.3103279810382858,-0.06192823384610777,-0.6626592935698645,-0.47019405829769034,0.407507636279537,0.40699493124541974,0.9180277669428678],[-0.03916098920623212,-0.6928971576420987,0.34229341823799847,0.35550173057597567,0.681237831830302,-1.0256307463126375,-0.6283470699424959,0.05601486978762606,-0.7649589214146237,-0.4659844311361782,0.298624912050514,-0.4539118181673448,-0.39473058447412906,-0.19334932839177266],[-0.8152801603523544,-0.9437163412522565,0.48443120307498133,-0.49684187154564413,-0.01624765045858675,-0.08896277040190882,0.6414723590478425,1.3977118454045816,-0.5542860642596479,0.1557666402011733,0.44444254381825166,-0.43605539938770926,-0.16077783846316698,0.5947189342682891],[0.19989367120969026,0.20750311385367146,-0.012167294731813744,0.028644308681682468,-0.026318220387936925,0.02057510576000257,0.605311502534645,-0.09789331355711374,-0.825688016818801,-0.015295022779279684,-0.08644488278562916,0.37602091384225467,-0.23707804811230854,-1.1128583363078424],[0.4613440998229632,0.9130090388971445,-0.10980073543719122,0.9342752348285424,-0.4586468361337591,0.38200236551729855,-2.227760893774081,0.04702674594624997,1.1068443674305153,0.8707737972743633,0.8775875782158178,0.7731555832810424,0.8336237398369675,0.7884200070733559],[0.8856494281770162,-0.545359188953373,0.4955512460059538,-0.35257573877812654,0.3442751281110614,-0.5744873253499859,-0.18823584284617384,0.6479473828462587,0.4484817028510416,-1.2788028230814057,0.13035135926871427,0.5041298140405176,-0.12347561234478507,-0.8848849839863487],[1.1228502645992693,-0.14092848316200268,-0.9159943928348059,-1.0624982349002108,-0.974873816624988,-0.41241404924188746,-0.22338342365911534,-1.2674390088887006,0.521014454308523,0.06406157951275038,-0.04745727789570919,0.05275764761711459,0.5241773572442802,-1.0728934486357236],[0.21817796848680085,-0.0022734920009195025,-0.22758361356091325,-0.13251986354213258,-0.9226528257319271,1.1828259303585238,1.1021999102649314,-0.17160195653067944,-0.2558899277055318,-0.009890620521443391,-0.7820645875161955,0.7725921340395294,0.6401951775652116,-0.359121422641488],[0.8767912042839706,-0.6981957252158879,-0.7214875945846732,0.05566055655244842,-0.15643340539258238,1.0242470400487271,0.25063274909549144,-0.5040452135073504,-0.46167823360775995,0.10104997249282502,-0.24626739097886405,-0.456796619599921,-0.3800528407551563,-1.5759720123435381],[0.018065580724253988,-0.9819704206986241,1.667913700223287,-0.7128148118009691,0.17073522816044534,-1.9278540705997698,0.5436009887248325,1.3500103363752771,-0.31047752254022204,-0.7371982501627391,0.5180189842471075,-0.8665355235111858,-0.7842354927214287,-0.2438432904421302],[1.0429622306017658,0.4606519481437817,-1.242012745759631,-0.04055665589269374,0.09135086960462231,0.34123073492708583,-0.5294146763656398,-1.264170648016088,-0.6528326838818914,0.0997862481779639,0.011767143250909884,0.28416522445789405,0.3215203579263567,0.14317922306987832],[1.3479607420606161,0.021186049454083027,-0.1396626735818415,0.0799954735876007,-0.6835956113991452,-0.3952540431287935,0.3414055733703518,-0.07726466380716851,0.3335751982710628,-0.5999830292694965,0.020627687772510013,1.30468714919863,-1.2562252726387864,-1.2869884591571121],[0.48657171115605913,0.755837155314643,-0.4428427767814884,-0.5082992173569787,-0.4754871179424143,-0.23377447997820702,-0.0482667987606725,0.1059544404223745,-0.32705194817309513,0.4355692503185023,-0.17424789298571474,-0.19259316613641894,0.15765619578069057,0.2673874794895802],[0.1181557659159182,-1.2777320359290782,0.297095518984281,0.12422724135735651,0.8518027973099567,-0.7555953848916478,0.5360913592271627,0.43629625871856603,0.6689678962124496,0.07442820643268064,0.3957070874558219,-1.3928354645455583,-0.4327936227309079,0.31261886069600836],[-1.5930443530888239,-0.1871748916306075,0.4931804354354633,0.767432001907806,-0.41931607531719295,0.1251185232855885,0.6876415130331613,-0.2707307748224615,0.3083849644016261,1.2264380775780506,0.6547460019325538,-0.540097496921976,0.22196907875234706,-0.9047264528789332],[-0.3514299367567074,-0.2905965868880256,-0.17806715192566264,-0.5835891671983293,0.08197055862606054,-0.786806068334649,0.005404910294343042,0.2934164491118298,-0.38344725406523794,0.38893013618055833,0.3173564209250457,-0.2859483652517912,0.8224074470850902,-1.2138257072411964],[-0.162932044163212,0.36061737173221436,0.5986138402627296,0.0268926105122894,0.3320059113936015,-1.1302574409928245,0.4955994526940446,-0.08833977767406821,0.5863654301564918,-1.5052912233386886,0.6873495239010706,-0.43330626866367605,-0.35251747071437584,-0.8780214269775632]],
+  LW: [[0.27208523008167723,0.6093819603281456,0.4089323843959684,-0.4369826832930509,0.5943908697266723,-0.21946370352594094,-0.3613176893768896,-0.5453345411263402,-0.1699403122026996,-0.04933041811152103,0.06792037258539069,-0.18509375545950682,0.4524025566362876,0.09675639237719579,0.4412750742700133,-0.015593822231384648,-0.5068458837053906,-0.0638087708241949,-0.06255161475142657,-0.35333071767634805,-0.07804086847469151]],
+  b0: [-1.9571668114559801,1.6936128737403704,1.6843309690081596,-1.4725221676794908,-1.7650475404720283,-0.8744021089225462,-2.113400115322497,0.4992708499349831,-0.1979697021883137,0.5701176234200416,0.8048962400327211,-0.11737677936889998,-0.019691246013102116,-0.7796150148830292,2.3973924451976307,0.28494052869362024,0.7530289123492563,1.6468216905335058,-0.9056888998456376,2.145269274345442,1.8393363668939375],
+  b1: [-0.13752035155472456]
+};
+
+/* ══════════════
+   MIN-MAX BOUNDS
+════════════════ */
+const BOUNDS = {
+  g:   [0, 16],    sand: [3, 71],   mc:  [29, 97],
+  cs:  [0, 12],    ms:   [1, 35],   fs:  [1, 63],
+  m:   [5, 31],    c:    [20, 77],  ll:  [23, 54],
+  pl:  [12, 25],   pi:   [5, 33],   coh: [0.00, 1.90],
+  phi: [1.00, 33.50],
+  sus: [1, 2],
+  cbr: [2.59, 19.39]
+};
+
+/* ══════════════
+   ANN FUNCTIONS
+════════════════ */
+function tansig(x) { return 2 / (1 + Math.exp(-2 * x)) - 1; }
+
+function norm(v, vmin, vmax) { return ((v - vmin) / (vmax - vmin)) * 2 - 1; }
+
+function denorm(v, vmin, vmax) { return ((v + 1) / 2) * (vmax - vmin) + vmin; }
+
+function predict(inputs) {
+  // inputs: array of 14 normalised values
+  const IW = MODEL.IW, LW = MODEL.LW, b0 = MODEL.b0, b1 = MODEL.b1;
+  const h = b0.map((bias, i) => {
+    let z = bias;
+    for (let j = 0; j < inputs.length; j++) z += IW[i][j] * inputs[j];
+    return tansig(z);
+  });
+  let out = b1[0];
+  for (let i = 0; i < h.length; i++) out += LW[0][i] * h[i];
+  return tansig(out);
+}
+
+function predictCBR(params, susVal) {
+  const inp = [
+    norm(params.g,    ...BOUNDS.g),
+    norm(params.sand, ...BOUNDS.sand),
+    norm(params.mc,   ...BOUNDS.mc),
+    norm(params.cs,   ...BOUNDS.cs),
+    norm(params.ms,   ...BOUNDS.ms),
+    norm(params.fs,   ...BOUNDS.fs),
+    norm(params.m,    ...BOUNDS.m),
+    norm(params.c,    ...BOUNDS.c),
+    norm(params.ll,   ...BOUNDS.ll),
+    norm(params.pl,   ...BOUNDS.pl),
+    norm(params.pi,   ...BOUNDS.pi),
+    norm(params.coh,  ...BOUNDS.coh),
+    norm(params.phi,  ...BOUNDS.phi),
+    norm(susVal,      ...BOUNDS.sus),
+  ];
+  const raw = predict(inp);
+  return denorm(raw, ...BOUNDS.cbr);
+}
+
+/* ══════════════════════
+   LIVE SINGLE PREDICTION
+════════════════════════ */
+const FIELD_IDS = ['g','sand','mc','cs','ms','fs','m','c','ll','pl','pi','coh','phi'];
+
+function readSingle() {
+  const p = {};
+  for (const id of FIELD_IDS) {
+    const v = parseFloat(document.getElementById(id).value);
+    if (isNaN(v)) return null;
+    p[id] = v;
+  }
+  return p;
+}
+
+function updateSingle() {
+  const p = readSingle();
+  const sEl = document.getElementById('cbr_s');
+  const uEl = document.getElementById('cbr_us');
+  const msg = document.getElementById('statusMsg');
+  if (!p) {
+    sEl.value = ''; uEl.value = '';
+    setStatus('Enter valid numeric values in all 13 fields.', false);
+    return;
+  }
+  try {
+    const s  = predictCBR(p, 1).toFixed(2);
+    const us = predictCBR(p, 2).toFixed(2);
+    sEl.value = s;  uEl.value = us;
+    setStatus('✔ Estimation completed.', true);
+  } catch(e) {
+    sEl.value = ''; uEl.value = '';
+    setStatus('Error: ' + e.message, false);
+  }
+}
+
+FIELD_IDS.forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSingle);
+});
+
+/* ══════════════
+   STATUS HELPER
+════════════════ */
+function setStatus(text, ok) {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status-msg ' + (ok ? 'ok' : 'err');
+  el.innerHTML = `<span class="status-dot ${ok?'dot-ok':'dot-err'}"></span>${text}`;
+}
+
+/* ══════════════
+   RANGE TOGGLE
+════════════════ */
+function toggleRange() {
+  const t = document.getElementById('rangeTable');
+  const btn = document.querySelector('.range-toggle');
+  if (t.style.display === 'table') {
+    t.style.display = 'none';
+    btn.textContent = '▸ Show input parameter ranges';
+  } else {
+    t.style.display = 'table';
+    btn.textContent = '▾ Hide input parameter ranges';
+  }
+}
+
+/* ══════════════════════════════════
+   KNOWN DATASET
+══════════════════════════════════ */
+let knownData = null;
+
+function browseKnown() { document.getElementById('kd-file').click(); }
+
+function loadKnown(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('kd-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, {type:'binary'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    knownData = XLSX.utils.sheet_to_json(ws, {header:1, defval:0});
+    // Remove header row if first cell is a string
+    if (knownData.length && isNaN(parseFloat(knownData[0][0]))) knownData.shift();
+    setStatus(`Loaded "${file.name}" — ${knownData.length} rows.`, true);
+  };
+  reader.readAsBinaryString(file);
+}
+
+function runKnown() {
+  if (!knownData || knownData.length === 0) {
+    setStatus('Upload a known dataset first.', false); return;
+  }
+  try {
+    const inCols  = ['G(%)','SAND(%)','M&C(%)','CS(%)','MS(%)','FS(%)','M(%)','C(%)','LL(%)','PL(%)','PI(%)','c(kg/cm2)','Phi(%)','S/US(%)','CBR_measured'];
+    const outRows = [];
+    const measured = [], predicted = [];
+
+    for (const row of knownData) {
+      if (row.length < 15) continue;
+      const [g,sand,mc,cs,ms,fs,m,c,ll,pl,pi,coh,phi,sus,cbr_m] = row.map(Number);
+      const inp = [
+        norm(g,    ...BOUNDS.g),    norm(sand, ...BOUNDS.sand),
+        norm(mc,   ...BOUNDS.mc),   norm(cs,   ...BOUNDS.cs),
+        norm(ms,   ...BOUNDS.ms),   norm(fs,   ...BOUNDS.fs),
+        norm(m,    ...BOUNDS.m),    norm(c,    ...BOUNDS.c),
+        norm(ll,   ...BOUNDS.ll),   norm(pl,   ...BOUNDS.pl),
+        norm(pi,   ...BOUNDS.pi),   norm(coh,  ...BOUNDS.coh),
+        norm(phi,  ...BOUNDS.phi),  norm(sus,  ...BOUNDS.sus),
+      ];
+      const cbr_p = parseFloat(denorm(predict(inp), ...BOUNDS.cbr).toFixed(4));
+      measured.push(cbr_m); predicted.push(cbr_p);
+      outRows.push([g,sand,mc,cs,ms,fs,m,c,ll,pl,pi,coh,phi,sus,cbr_m,cbr_p]);
+    }
+
+    // R
+    const n = measured.length;
+    const mMean = measured.reduce((a,b)=>a+b,0)/n;
+    const pMean = predicted.reduce((a,b)=>a+b,0)/n;
+    let num=0, dM=0, dP=0;
+    for (let i=0;i<n;i++){
+      num += (measured[i]-mMean)*(predicted[i]-pMean);
+      dM  += (measured[i]-mMean)**2;
+      dP  += (predicted[i]-pMean)**2;
+    }
+    const R = num / Math.sqrt(dM*dP);
+    const RMSE = Math.sqrt(measured.reduce((s,v,i)=>s+(v-predicted[i])**2,0)/n);
+    document.getElementById('r_val').value   = R.toFixed(4);
+    document.getElementById('rmse_val').value = RMSE.toFixed(4);
+
+    // Save
+    const ws = XLSX.utils.aoa_to_sheet([[...inCols,'CBR_predicted'], ...outRows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, 'CBR_known_results.xlsx');
+    setStatus(`✔ Saved results. R=${R.toFixed(4)}, RMSE=${RMSE.toFixed(4)}`, true);
+    document.getElementById('kd-status').textContent = 'File saved.';
+  } catch(e) {
+    setStatus('Error: ' + e.message, false);
+  }
+}
+
+/* ══════════════════════════════════
+   MULTIPLE DATASET
+══════════════════════════════════ */
+let multiData = null;
+
+function browseMulti() { document.getElementById('md-file').click(); }
+
+function loadMulti(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('md-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, {type:'binary'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    multiData = XLSX.utils.sheet_to_json(ws, {header:1, defval:0});
+    if (multiData.length && isNaN(parseFloat(multiData[0][0]))) multiData.shift();
+    setStatus(`Loaded "${file.name}" — ${multiData.length} rows.`, true);
+  };
+  reader.readAsBinaryString(file);
+}
+
+function runMulti() {
+  if (!multiData || multiData.length === 0) {
+    setStatus('Upload a dataset first.', false); return;
+  }
+  try {
+    const headers = ['G(%)','SAND(%)','M&C(%)','CS(%)','MS(%)','FS(%)','M(%)','C(%)','LL(%)','PL(%)','PI(%)','c(kg/cm2)','Phi(%)','S/US(%)','CBR_predicted'];
+    const outRows = [];
+
+    for (const row of multiData) {
+      if (row.length < 14) continue;
+      const [g,sand,mc,cs,ms,fs,m,c,ll,pl,pi,coh,phi,sus] = row.map(Number);
+      const inp = [
+        norm(g,    ...BOUNDS.g),    norm(sand, ...BOUNDS.sand),
+        norm(mc,   ...BOUNDS.mc),   norm(cs,   ...BOUNDS.cs),
+        norm(ms,   ...BOUNDS.ms),   norm(fs,   ...BOUNDS.fs),
+        norm(m,    ...BOUNDS.m),    norm(c,    ...BOUNDS.c),
+        norm(ll,   ...BOUNDS.ll),   norm(pl,   ...BOUNDS.pl),
+        norm(pi,   ...BOUNDS.pi),   norm(coh,  ...BOUNDS.coh),
+        norm(phi,  ...BOUNDS.phi),  norm(sus,  ...BOUNDS.sus),
+      ];
+      const cbr_p = parseFloat(denorm(predict(inp), ...BOUNDS.cbr).toFixed(2));
+      outRows.push([g,sand,mc,cs,ms,fs,m,c,ll,pl,pi,coh,phi,sus,cbr_p]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...outRows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, 'CBR_multiple_results.xlsx');
+    setStatus(`✔ Saved predictions for ${outRows.length} rows.`, true);
+    document.getElementById('md-status').textContent = 'File saved.';
+  } catch(e) {
+    setStatus('Error: ' + e.message, false);
+  }
+}
+</script>
+</body>
+</html>

@@ -321,11 +321,11 @@
             <input type="number" id="fs"   placeholder="1–63"  step="any">
           </div>
           <div class="field">
-            <label>Silt (%)</label>
+            <label>Clay (%)</label>
             <input type="number" id="m"    placeholder="5–31"  step="any">
           </div>
           <div class="field">
-            <label>Clay (%)</label>
+            <label>Silt (%)</label>
             <input type="number" id="c"    placeholder="20–77" step="any">
           </div>
           <div class="field">
@@ -436,8 +436,8 @@
       <tr><td>Coarse sand</td><td>0</td><td>12</td><td>%</td></tr>
       <tr><td>Medium sand</td><td>1</td><td>35</td><td>%</td></tr>
       <tr><td>Fine sand</td><td>1</td><td>63</td><td>%</td></tr>
-      <tr><td>Silt</td><td>5</td><td>31</td><td>%</td></tr>
-      <tr><td>Clay</td><td>20</td><td>77</td><td>%</td></tr>
+      <tr><td>Clay</td><td>5</td><td>31</td><td>%</td></tr>
+      <tr><td>Silt</td><td>20</td><td>77</td><td>%</td></tr>
       <tr><td>Liquid limit</td><td>23</td><td>54</td><td>%</td></tr>
       <tr><td>Plastic limit</td><td>12</td><td>25</td><td>%</td></tr>
       <tr><td>Plasticity index</td><td>5</td><td>33</td><td>%</td></tr>
@@ -634,7 +634,7 @@ function runKnown() {
     setStatus('Upload a known dataset first.', false); return;
   }
   try {
-    const inCols  = ['G(%)','SAND(%)','M&C(%)','CS(%)','MS(%)','FS(%)','M(%)','C(%)','LL(%)','PL(%)','PI(%)','c(kg/cm2)','Phi(%)','S/US(%)','CBR_measured'];
+    const inCols  = ['G(%)','SAND(%)','M&C(%)','CS(%)','MS(%)','FS(%)','C(%)','M(%)','LL(%)','PL(%)','PI(%)','c(kg/cm2)','Phi(%)','S/US(%)','CBR_measured'];
     const outRows = [];
     const measured = [], predicted = [];
 
@@ -709,7 +709,7 @@ function runMulti() {
     setStatus('Upload a dataset first.', false); return;
   }
   try {
-    const headers = ['G(%)','SAND(%)','M&C(%)','CS(%)','MS(%)','FS(%)','M(%)','C(%)','LL(%)','PL(%)','PI(%)','c(kg/cm2)','Phi(%)','S/US(%)','CBR_predicted'];
+    const headers = ['G(%)','SAND(%)','M&C(%)','CS(%)','MS(%)','FS(%)','C(%)','M(%)','LL(%)','PL(%)','PI(%)','c(kg/cm2)','Phi(%)','S/US(%)','CBR_predicted'];
     const outRows = [];
 
     for (const row of multiData) {
